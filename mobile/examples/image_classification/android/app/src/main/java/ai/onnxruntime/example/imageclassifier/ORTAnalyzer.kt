@@ -7,6 +7,7 @@ import ai.onnxruntime.*
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import java.util.*
@@ -14,14 +15,14 @@ import kotlin.math.exp
 
 
 internal data class Result(
-        var detectedIndices: List<Int> = emptyList(),
-        var detectedScore: MutableList<Float> = mutableListOf<Float>(),
-        var processTimeMs: Long = 0
+    var detectedIndices: List<Int> = emptyList(),
+    var detectedScore: MutableList<Float> = mutableListOf<Float>(),
+    var processTimeMs: Long = 0
 ) {}
 
 internal class ORTAnalyzer(
-        private val ortSession: OrtSession?,
-        private val callBack: (Result) -> Unit
+    private val ortSession: OrtSession?,
+    private val callBack: (Result) -> Unit
 ) : ImageAnalysis.Analyzer {
 
     // Get index of top 3 values
@@ -83,25 +84,30 @@ internal class ORTAnalyzer(
 
             val imgData = preProcess(bitmap)
             val inputName = ortSession?.inputNames?.iterator()?.next()
-            val shape = longArrayOf(1, 3, 224, 224)
+            //val shape = longArrayOf(1, 3, 224, 224)
+            val shape = longArrayOf(1, 3, 256, 192)
             val env = OrtEnvironment.getEnvironment()
+            val startTime = SystemClock.uptimeMillis()
             env.use {
                 val tensor = OnnxTensor.createTensor(env, imgData, shape)
-                val startTime = SystemClock.uptimeMillis()
+                //val startTime = SystemClock.uptimeMillis()
                 tensor.use {
                     val output = ortSession?.run(Collections.singletonMap(inputName, tensor))
                     output.use {
                         result.processTimeMs = SystemClock.uptimeMillis() - startTime
                         @Suppress("UNCHECKED_CAST")
-                        val rawOutput = ((output?.get(0)?.value) as Array<FloatArray>)[0]
+                        Log.d("test","output size "+output?.size())
+                        /*val rawOutput = ((output?.get(0)?.value) as Array<FloatArray>)[0]
                         val probabilities = softMax(rawOutput)
                         result.detectedIndices = getTop3(probabilities)
                         for (idx in result.detectedIndices) {
                             result.detectedScore.add(probabilities[idx])
-                        }
+                        }*/
                     }
                 }
             }
+            val endtime=SystemClock.uptimeMillis()-startTime
+            Log.d("test","rtmpose runtime is "+endtime)
             callBack(result)
         }
 
